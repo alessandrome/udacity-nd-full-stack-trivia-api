@@ -4,7 +4,10 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 import random
 
-from models import setup_db, Question, Category
+from werkzeug.datastructures import MultiDict
+
+from models import db, setup_db, Question, Category
+from forms import QuestionForm
 
 QUESTIONS_PER_PAGE = 10
 
@@ -12,12 +15,17 @@ QUESTIONS_PER_PAGE = 10
 def create_app(test_config=None):
     # create and configure the app
     app = Flask(__name__)
+    app.config['WTF_CSRF_ENABLED'] = False
+    # if test_config:
+    #     app.config.from_object(test_config)
+    # else:
+    #     app.config.from_object('config')
     setup_db(app)
 
     '''
     @TODO: Set up CORS. Allow '*' for origins. Delete the sample route after completing the TODOs
     '''
-    cors = CORS(app)
+    # cors = CORS(app)
 
     '''
     @TODO: Use the after_request decorator to set Access-Control-Allow
@@ -33,6 +41,15 @@ def create_app(test_config=None):
     Create an endpoint to handle GET requests 
     for all available categories.
     '''
+    @app.route('/categories')
+    def get_categories():
+        categories = Category.query.all()
+        return_data = {
+            'categories': {}
+        }
+        for category in categories:
+            return_data['categories'][category.id] = category.type
+        return jsonify(return_data)
 
     '''
     @TODO: 
@@ -46,6 +63,48 @@ def create_app(test_config=None):
     ten questions per page and pagination at the bottom of the screen for three pages.
     Clicking on the page numbers should update the questions. 
     '''
+    @app.route('/questions/<int:question_id>')
+    def get_question(question_id):
+        question = db.session.query(Question).filter(Question.id == question_id).first()
+        if not question:
+            return not_found_error()
+        return_data = {
+            'id': question.id,
+            'question': question.question,
+            'answer': question.answer,
+            'category': question.category,
+            'difficulty': question.difficulty,
+        }
+        return jsonify(return_data)
+
+    @app.route('/questions')
+    def get_questions():
+        max_per_page = 10
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', max_per_page, type=int)
+        q = db.session.query(Question)
+        search_term = request.args.get('searchTerm', None, str)
+        if search_term:
+            q = q.filter(Question.question.ilike('%{}%'.format(search_term)))
+        questions_pagination = q.paginate(page, per_page, max_per_page)
+        categories = db.session.query(Category).all()
+        return_data = {
+            'questions': [],
+            'total_questions': questions_pagination.total,
+            'categories': {},
+            'current_category': None,
+        }
+        for question in questions_pagination.items:
+            return_data['questions'].append({
+                'id': question.id,
+                'question': question.question,
+                'answer': question.answer,
+                'category': question.category,
+                'difficulty': question.difficulty,
+            })
+        for category in categories:
+            return_data['categories'][category.id] = category.type
+        return jsonify(return_data)
 
     '''
     @TODO: 
@@ -54,6 +113,14 @@ def create_app(test_config=None):
     TEST: When you click the trash icon next to a question, the question will be removed.
     This removal will persist in the database and when you refresh the page. 
     '''
+    @app.route('/questions/<int:question_id>', methods=['DELETE'])
+    def delete_question(question_id):
+        question = db.session.query(Question).filter(Question.id == question_id).first()
+        if not question:
+            return not_found_error()
+        db.session.delete(question)
+        db.session.commit()
+        return '', 204
 
     '''
     @TODO: 
@@ -65,6 +132,17 @@ def create_app(test_config=None):
     the form will clear and the question will appear at the end of the last page
     of the questions list in the "List" tab.  
     '''
+    @app.route('/questions', methods=['POST'])
+    def create_question():
+        data = request.get_json()
+        form = QuestionForm(MultiDict(mapping=data))
+        if not form.validate():
+            return jsonify({}), 400
+        question = Question(question=form.question.data, answer=form.answer.data, difficulty=form.difficulty.data,
+                            category=form.category.data)
+        db.session.add(question)
+        db.session.commit()
+        return '', 204
 
     '''
     @TODO: 
@@ -76,6 +154,28 @@ def create_app(test_config=None):
     only question that include that string within their question. 
     Try using the word "title" to start. 
     '''
+    @app.route('/questions/filters', methods=['POST'])
+    def search_question():
+        q = db.session.query(Question)
+        data = request.get_json()
+        if 'searchTerm' not in data:
+            return jsonify({'error': 'SearchTerm must be passed'}), 400
+        q = q.filter(Question.question.ilike('%{}%'.format(data['searchTerm'])))
+        questions = q.all()
+        questions_data = {
+            'questions': [],
+            'total_questions': len(questions),
+            'current_category': None
+        }
+        for question in questions:
+            questions_data['questions'].append({
+                'id': question.id,
+                'question': question.question,
+                'answer': question.answer,
+                'difficulty': question.difficulty,
+                'category': question.category
+            })
+        return jsonify(questions_data)
 
     '''
     @TODO: 
@@ -85,6 +185,26 @@ def create_app(test_config=None):
     categories in the left column will cause only questions of that 
     category to be shown. 
     '''
+    @app.route('/categories/<int:category_id>/questions')
+    def get_category_questions(category_id):
+        cat = Category.query.filter(Category.id == category_id).first()
+        if not cat:
+            return not_found_error()
+        questions = db.session.query(Question).filter(Question.category == category_id).all()
+        questions_data = {
+            'questions': [],
+            'total_questions': len(questions),
+            'current_category': cat.type
+        }
+        for question in questions:
+            questions_data['questions'].append({
+                'id': question.id,
+                'question': question.question,
+                'answer': question.answer,
+                'difficulty': question.difficulty,
+                'category': question.category
+            })
+        return jsonify(questions_data)
 
     '''
     @TODO: 
@@ -103,5 +223,14 @@ def create_app(test_config=None):
     Create error handlers for all expected errors 
     including 404 and 422. 
     '''
+    @app.errorhandler(404)
+    def not_found_error(error='Resource not found'):
+        return error, 404
+        return jsonify({'error': error}), 404
+
+    @app.errorhandler(422)
+    def not_found_error(error='Resource not found'):
+        return error, 422
+        return jsonify({'error': error}), 422
 
     return app
