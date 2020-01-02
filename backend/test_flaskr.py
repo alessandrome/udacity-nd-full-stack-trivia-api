@@ -11,7 +11,7 @@ class TriviaTestCase(unittest.TestCase):
     """This class represents the trivia test case"""
 
     def setUp(self):
-        """Define test variables and initialize app."""
+        """Define test variables and initialize app. Tests are made with the trivia.psql DB"""
         self.app = create_app('config_test')
         self.app.config['WTF_CSRF_ENABLED'] = False
         self.client = self.app.test_client
