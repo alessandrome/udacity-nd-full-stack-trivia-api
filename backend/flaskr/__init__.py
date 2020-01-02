@@ -4,6 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 import random
 
+from sqlalchemy import text
 from werkzeug.datastructures import MultiDict
 
 from models import db, setup_db, Question, Category
@@ -16,16 +17,12 @@ def create_app(test_config=None):
     # create and configure the app
     app = Flask(__name__)
     app.config['WTF_CSRF_ENABLED'] = False
-    # if test_config:
-    #     app.config.from_object(test_config)
-    # else:
-    #     app.config.from_object('config')
     setup_db(app)
 
     '''
     @TODO: Set up CORS. Allow '*' for origins. Delete the sample route after completing the TODOs
     '''
-    # cors = CORS(app)
+    cors = CORS(app)
 
     '''
     @TODO: Use the after_request decorator to set Access-Control-Allow
@@ -228,9 +225,11 @@ def create_app(test_config=None):
     def get_quizzes():
         data = request.json
         q = Question.query
+        # Filter by category id
         if data['quiz_category']['id']:
             q = q.filter(Question.category == data['quiz_category']['id'])
-        q = q.filter(Question.id.notin_(data['previous_questions']))
+        q = q.filter(Question.id.notin_(data['previous_questions']))\
+            .filter(text('id >= (SELECT FLOOR( MAX(id) * RANDOM()) FROM {} )'.format(Question.__tablename__)))  # Random selection
         question = q.first()
         return_data = {
             'question': {
