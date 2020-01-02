@@ -41,6 +41,7 @@ def create_app(test_config=None):
     Create an endpoint to handle GET requests 
     for all available categories.
     '''
+
     @app.route('/categories')
     def get_categories():
         categories = Category.query.all()
@@ -63,6 +64,7 @@ def create_app(test_config=None):
     ten questions per page and pagination at the bottom of the screen for three pages.
     Clicking on the page numbers should update the questions. 
     '''
+
     @app.route('/questions/<int:question_id>')
     def get_question(question_id):
         question = db.session.query(Question).filter(Question.id == question_id).first()
@@ -113,6 +115,7 @@ def create_app(test_config=None):
     TEST: When you click the trash icon next to a question, the question will be removed.
     This removal will persist in the database and when you refresh the page. 
     '''
+
     @app.route('/questions/<int:question_id>', methods=['DELETE'])
     def delete_question(question_id):
         question = db.session.query(Question).filter(Question.id == question_id).first()
@@ -132,6 +135,7 @@ def create_app(test_config=None):
     the form will clear and the question will appear at the end of the last page
     of the questions list in the "List" tab.  
     '''
+
     @app.route('/questions', methods=['POST'])
     def create_question():
         data = request.get_json()
@@ -154,6 +158,7 @@ def create_app(test_config=None):
     only question that include that string within their question. 
     Try using the word "title" to start. 
     '''
+
     @app.route('/questions/filters', methods=['POST'])
     def search_question():
         q = db.session.query(Question)
@@ -185,6 +190,7 @@ def create_app(test_config=None):
     categories in the left column will cause only questions of that 
     category to be shown. 
     '''
+
     @app.route('/categories/<int:category_id>/questions')
     def get_category_questions(category_id):
         cat = Category.query.filter(Category.id == category_id).first()
@@ -218,11 +224,31 @@ def create_app(test_config=None):
     and shown whether they were correct or not. 
     '''
 
+    @app.route('/quizzes', methods=['POST'])
+    def get_quizzes():
+        data = request.json
+        q = Question.query
+        if data['quiz_category']['id']:
+            q = q.filter(Question.category == data['quiz_category']['id'])
+        q = q.filter(Question.id.notin_(data['previous_questions']))
+        question = q.first()
+        return_data = {
+            'question': {
+                'id': question.id,
+                'question': question.question,
+                'answer': question.answer,
+                'category': question.category,
+                'difficulty': question.difficulty
+            }
+        }
+        return jsonify(return_data)
+
     '''
     @TODO: 
     Create error handlers for all expected errors 
     including 404 and 422. 
     '''
+
     @app.errorhandler(404)
     def not_found_error(error='Resource not found'):
         return error, 404
