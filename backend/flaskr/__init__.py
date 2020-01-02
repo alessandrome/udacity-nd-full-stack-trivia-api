@@ -78,14 +78,15 @@ def create_app(test_config=None):
 
     @app.route('/questions')
     def get_questions():
+        """Get paginated questions (10 per page by default) and by a term filter if present. This permit a simple bookmarkable link for filtered questions"""
         max_per_page = 10
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', max_per_page, type=int)
         q = db.session.query(Question)
         search_term = request.args.get('searchTerm', None, str)
         if search_term:
-            q = q.filter(Question.question.ilike('%{}%'.format(search_term)))
-        questions_pagination = q.paginate(page, per_page, max_per_page)
+            q = q.filter(Question.question.ilike('%{}%'.format(search_term)))  # Filter by term
+        questions_pagination = q.paginate(page, per_page, max_per_page)  # Paginate result
         categories = db.session.query(Category).all()
         return_data = {
             'questions': [],
@@ -138,12 +139,19 @@ def create_app(test_config=None):
         data = request.get_json()
         form = QuestionForm(MultiDict(mapping=data))
         if not form.validate():
-            return jsonify({}), 400
+            return jsonify(form.errors), 400
         question = Question(question=form.question.data, answer=form.answer.data, difficulty=form.difficulty.data,
                             category=form.category.data)
         db.session.add(question)
         db.session.commit()
-        return '', 204
+        return_data = {
+            'id': question.id,
+            'question': question.question,
+            'answer': question.answer,
+            'difficulty': question.difficulty,
+            'category': question.category
+        }
+        return jsonify(return_data), 201
 
     '''
     @TODO: 
@@ -190,6 +198,7 @@ def create_app(test_config=None):
 
     @app.route('/categories/<int:category_id>/questions')
     def get_category_questions(category_id):
+        """Get questions by category id"""
         cat = Category.query.filter(Category.id == category_id).first()
         if not cat:
             return not_found_error()
@@ -223,13 +232,14 @@ def create_app(test_config=None):
 
     @app.route('/quizzes', methods=['POST'])
     def get_quizzes():
+        """Get a random question for a quiz"""
         data = request.json
         q = Question.query
         # Filter by category id
         if data['quiz_category']['id']:
             q = q.filter(Question.category == data['quiz_category']['id'])
-        q = q.filter(Question.id.notin_(data['previous_questions']))\
-            .filter(text('id >= (SELECT FLOOR( MAX(id) * RANDOM()) FROM {} )'.format(Question.__tablename__)))  # Random selection
+        q = q.filter(Question.id.notin_(data['previous_questions'])).filter(  # Avoid already done questions
+            text('id >= (SELECT FLOOR( MAX(id) * RANDOM()) FROM {} )'.format(Question.__tablename__)))  # Random selection
         question = q.first()
         return_data = {
             'question': {
