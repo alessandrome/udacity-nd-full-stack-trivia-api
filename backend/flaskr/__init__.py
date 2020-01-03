@@ -6,6 +6,7 @@ import random
 
 from sqlalchemy import text
 from werkzeug.datastructures import MultiDict
+from werkzeug.exceptions import NotFound
 
 from models import db, setup_db, Question, Category
 from forms import QuestionForm
@@ -139,7 +140,7 @@ def create_app(test_config=None):
         data = request.get_json()
         form = QuestionForm(MultiDict(mapping=data))
         if not form.validate():
-            return jsonify(form.errors), 400
+            return bad_request_error(form.errors)
         question = Question(question=form.question.data, answer=form.answer.data, difficulty=form.difficulty.data,
                             category=form.category.data)
         db.session.add(question)
@@ -169,7 +170,7 @@ def create_app(test_config=None):
         q = db.session.query(Question)
         data = request.get_json()
         if 'searchTerm' not in data:
-            return jsonify({'error': 'SearchTerm must be passed'}), 400
+            return bad_request_error({'error': 'SearchTerm must be passed'})
         q = q.filter(Question.question.ilike('%{}%'.format(data['searchTerm'])))
         questions = q.all()
         questions_data = {
@@ -259,23 +260,21 @@ def create_app(test_config=None):
     '''
 
     @app.errorhandler(400)
-    def not_found_error(error='Resource not found'):
-        return error, 400
+    def bad_request_error(error='Bad request'):
         return jsonify({'error': error}), 400
 
     @app.errorhandler(404)
     def not_found_error(error='Resource not found'):
-        return error, 404
+        if isinstance(error, NotFound):
+            return jsonify({'error': str(error)}), 404
         return jsonify({'error': error}), 404
 
     @app.errorhandler(422)
-    def not_found_error(error='Resource not found'):
-        return error, 422
+    def unprocessable_error(error='Unprocessable resource'):
         return jsonify({'error': error}), 422
 
     @app.errorhandler(500)
-    def not_found_error(error='Server Error'):
-        return error, 500
+    def server_error(error='Server Error'):
         return jsonify({'error': error}), 500
 
     return app
