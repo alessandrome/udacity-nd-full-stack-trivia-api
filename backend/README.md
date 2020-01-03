@@ -30,6 +30,8 @@ This will install all of the required packages we selected within the `requireme
 
 - [Flask-CORS](https://flask-cors.readthedocs.io/en/latest/#) is the extension we'll use to handle cross origin requests from our frontend server. 
 
+- [Flask-WTForm](https://flask-wtf.readthedocs.io/en/stable/#) is an extension to check form request data and have an easy way to create forms
+
 ## Database Setup
 With Postgres running, restore a database using the trivia.psql file provided. From the backend folder in terminal run:
 ```bash
@@ -52,21 +54,6 @@ Setting the `FLASK_ENV` variable to `development` will detect file changes and r
 
 Setting the `FLASK_APP` variable to `flaskr` directs flask to use the `flaskr` directory and the `__init__.py` file to find the application. 
 
-## Tasks
-
-One note before you delve into your tasks: for each endpoint you are expected to define the endpoint and response data. The frontend will be a plentiful resource because it is set up to expect certain endpoints and response data formats already. You should feel free to specify endpoints in your own way; if you do so, make sure to update the frontend or you will get some unexpected behavior. 
-
-1. Use Flask-CORS to enable cross-domain requests and set response headers. 
-2. Create an endpoint to handle GET requests for questions, including pagination (every 10 questions). This endpoint should return a list of questions, number of total questions, current category, categories. 
-3. Create an endpoint to handle GET requests for all available categories. 
-4. Create an endpoint to DELETE question using a question ID. 
-5. Create an endpoint to POST a new question, which will require the question and answer text, category, and difficulty score. 
-6. Create a POST endpoint to get questions based on category. 
-7. Create a POST endpoint to get questions based on a search term. It should return any questions for whom the search term is a substring of the question. 
-8. Create a POST endpoint to get questions to play the quiz. This endpoint should take category and previous question parameters and return a random questions within the given category, if provided, and that is not one of the previous questions. 
-9. Create error handlers for all expected errors including 400, 404, 422 and 500. 
-
-REVIEW_COMMENT
 ```
 This README is missing documentation of your endpoints. Below is an example for your endpoint to get all categories. Please use it as a reference for creating your documentation and resubmit your code. 
 
@@ -89,6 +76,135 @@ GET '/categories'
 
 ```
 
+## Endpoints
+
+- ### GET /categories
+    Endpoint to retrieve all available categories as a dictionary of category_id => category_type.
+    
+    Example of JSON response:
+    ```
+    {
+        1: 'Sport',
+        2: 'Cinema',
+        3: 'Games',
+        4: 'Science',
+        ...
+    }
+    ```
+
+
+- ### GET /questions
+    Get the list of paginated questions (by default 10 questions per page). Is possible to search specific questions by the searchTerm query parameter.
+    
+    Query Parameters:
+    - **page**: Number of questions page to retrieve. Response with a 404 if the page number is over the last available page
+    - **perPage**: Optional Integer. If passed specify the number of question per page. Max 20 per page
+    - **searchTerm**: String to search questions by question text. The research is _case insensitive_
+
+    GET URL request example to get first page of questions containing word _Which_:
+    ```
+    /questions?page=1&searchTerm=Which
+    ```
+
+    Response example:
+    ```
+    {
+    "questions": [
+        {
+          "answer": "Maya Angelou", 
+          "category": 4, 
+          "difficulty": 2, 
+          "id": 5, 
+          "question": "Whose autobiography is entitled 'I Know Why the Caged Bird Sings'?"
+        }, 
+        {
+          "answer": "Muhammad Ali", 
+          "category": 4, 
+          "difficulty": 1, 
+          "id": 9, 
+          "question": "What boxer's original name is Cassius Clay?"
+        }, 
+        ...
+      ], 
+      "total_questions": 21, <== Number of TOTAL questions, not only questions in this response
+      "categories": {
+        "1": "Science", 
+        "2": "Art", 
+        "3": "Geography", 
+        ...
+      }, 
+      "current_category": null
+    }
+    
+    ```
+    
+- ### POST /questions
+    Create a new question. Return a **201** if request is completed with success.
+    
+    JSON Parameters:
+    - **question**: String. Question text
+    - **answer**: String. Answer to the question
+    - **difficulty**: Integer. Difficulty of the question
+    - **category**: Id of the category which question belongs
+    
+    Request example:
+    ```
+    {
+        question: "Is a new question?",
+        answer: "Yes",
+        difficulty: 4,
+        category: 1
+    }
+    ```
+  
+    The successful request return the created resource. Response example:
+    ```
+    {
+        question: "Is a new question?",
+        answer: "Yes",
+        difficulty: "4",
+        category: 1
+    }
+    ```
+
+- ### DELETE /questions/<question_id>
+    Delete a question specifying the ID on url. Return a 204 HTTP status if request is completed
+    
+    **URL** Parameters:
+    - **question_id**: Id of question to delete
+
+- ### POST /quizzes
+    Get the list of paginated questions (by default 10 questions per page). Is possible to search specific questions by the searchTerm query parameter.
+    
+    **JSON** Body Parameters:
+    - **previous_questions**: Array. List of question id that has been already done to avoid question repetitions
+    - **quiz_category**: Optional Integer. If passed specify the number of question per page. Max 20 per page
+    - **quiz_category.id**: Id of category of wanted questions. Pass 0 if you want questions of any category
+    - **quiz_category.type**: Textual name of wanted category
+    
+    Request example:
+    ```
+    {
+        "previous_questions":[2, 4],
+        "quiz_category": {
+            "type":"Science",
+            "id":"1"
+        }
+    }
+    ```
+    
+    Response example:
+    ```
+    {
+      "question": {
+        "answer": "The Liver", 
+        "category": 1, 
+        "difficulty": 4, 
+        "id": 20, 
+        "question": "What is the heaviest organ in the human body?"
+      }
+    }
+    ```
 
 ## Testing
 To run the tests, run

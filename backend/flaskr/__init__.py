@@ -81,7 +81,7 @@ def create_app(test_config=None):
         """Get paginated questions (10 per page by default) and by a term filter if present. This permit a simple bookmarkable link for filtered questions"""
         max_per_page = 10
         page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', max_per_page, type=int)
+        per_page = request.args.get('perPage', max_per_page, type=int)
         q = db.session.query(Question)
         search_term = request.args.get('searchTerm', None, str)
         if search_term:
@@ -258,6 +258,11 @@ def create_app(test_config=None):
     including 404 and 422. 
     '''
 
+    @app.errorhandler(400)
+    def not_found_error(error='Resource not found'):
+        return error, 400
+        return jsonify({'error': error}), 400
+
     @app.errorhandler(404)
     def not_found_error(error='Resource not found'):
         return error, 404
@@ -267,5 +272,10 @@ def create_app(test_config=None):
     def not_found_error(error='Resource not found'):
         return error, 422
         return jsonify({'error': error}), 422
+
+    @app.errorhandler(500)
+    def not_found_error(error='Server Error'):
+        return error, 500
+        return jsonify({'error': error}), 500
 
     return app
