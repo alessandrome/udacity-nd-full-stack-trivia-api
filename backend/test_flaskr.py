@@ -38,10 +38,6 @@ class TriviaTestCase(unittest.TestCase):
         self.categories_id_to_delete = []
         self.db.session.commit()
 
-    """
-    TODO
-    Write at least one test for each test for successful operation and for expected errors.
-    """
     def test_question_create(self):
         json_data = {'question': 'What is the best question?', 'answer': 'This', 'category': 1, 'difficulty': 2}
         res = self.client().post('/questions', json=json_data)
@@ -59,9 +55,23 @@ class TriviaTestCase(unittest.TestCase):
         self.assertEqual(data['difficulty'], 2)
 
     def test_question_list(self):
-        res = self.client().get('/questions')
+        res = self.client().get('/questions?page=1')
         data = json.loads(res.data)
         self.assertEqual(res.status_code, 200)
+        self.assertIn('questions', data)
+        self.assertIn('categories', data)
+        self.assertIn('total_questions', data)
+        self.assertGreaterEqual(data['total_questions'], len(data['questions']))
+
+    def test_question_list_search(self):
+        search_term = 'what'
+        res = self.client().get('/questions?page=1&searchTerm={}'.format(search_term))
+        data = json.loads(res.data)
+        self.assertEqual(res.status_code, 200)
+        self.assertIn('questions', data)
+        questions = data['questions']
+        for question in questions:
+            self.assertIn(search_term, search_term.lower())
 
     def test_question_read(self):
         question = self.db.session.query(Question).first()
@@ -87,6 +97,29 @@ class TriviaTestCase(unittest.TestCase):
         res = self.client().get('/categories')
         data = json.loads(res.data)
         self.assertEqual(res.status_code, 200)
+
+    def test_category_questions(self):
+        cat = Category.query.first()
+        res = self.client().get('/categories/{}/questions'.format(cat.id))
+        data = json.loads(res.data)
+        self.assertEqual(res.status_code, 200)
+        self.assertIn('questions', data)
+        for question in data['questions']:
+            self.assertEqual(question['category'], cat.id)
+
+    def test_quizzes(self):
+        cat = Category.query.first()
+        json_data = {'previous_questions': [], 'quiz_category': {'id': cat.id, 'type': cat.type}}
+        res = self.client().post('/quizzes', json=json_data)
+        data = json.loads(res.data)
+        self.assertEqual(res.status_code, 200)
+        self.assertIn('question', data)
+        question = data['question']
+        self.assertEqual(question['category'], cat.id)
+        self.assertIn('question', question)
+        self.assertIn('answer', question)
+        self.assertIn('difficulty', question)
+        self.assertIn('id', question)
 
 
 # Make the tests conveniently executable

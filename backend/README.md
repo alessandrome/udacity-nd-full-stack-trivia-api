@@ -91,6 +91,30 @@ GET '/categories'
         ...
     }
     ```
+  
+- ### GET /categories/<category_id>/questions
+    Get all questions of a specified category (by id)
+    
+    **URL** Parameters:
+    - **category_id**: Id of questions category
+        
+    Example of JSON response:
+    ```
+    {
+      "current_category": "Entertainment", 
+      "questions": [
+        {
+          "answer": "Apollo 13", 
+          "category": 5, 
+          "difficulty": 4, 
+          "id": 2, 
+          "question": "What movie earned Tom Hanks his third straight Oscar nomination, in 1996?"
+        }, 
+        ...
+      ], 
+      "total_questions": 3
+    }
+    ```
 
 
 - ### GET /questions
